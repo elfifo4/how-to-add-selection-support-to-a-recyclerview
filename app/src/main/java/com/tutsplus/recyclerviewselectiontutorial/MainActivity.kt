@@ -2,71 +2,95 @@ package com.tutsplus.recyclerviewselectiontutorial
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.os.PersistableBundle
-import android.support.v7.widget.LinearLayoutManager
-import androidx.recyclerview.selection.*
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.selection.SelectionPredicates
+import androidx.recyclerview.selection.SelectionTracker
+import androidx.recyclerview.selection.StableIdKeyProvider
+import androidx.recyclerview.selection.StorageStrategy
+import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.android.synthetic.main.activity_main.*
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private var tracker: SelectionTracker<Long>? = null
+    private lateinit var tracker: SelectionTracker<Long>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val myList = listOf(
-                Person("Alice", "555-0111"),
-                Person("Bob", "555-0119"),
-                Person("Carol", "555-0141"),
-                Person("Dan", "555-0155"),
-                Person("Eric", "555-0180"),
-                Person("Craig", "555-0145")
-        )
+        val source = ('A'..'Z').joinToString("")
+        val randomString: () -> String = {
+            Random().ints(10, 0, source.length)
+                .toArray()
+                .map(source::get)
+                .joinToString("")
+        }
+
+        val myList: List<Person> = List(20) { index ->
+            Person(randomString(), index.plus(1).times(10).toString().let { "$it-$it" })
+        }
 
         my_rv.layoutManager = LinearLayoutManager(this)
         my_rv.setHasFixedSize(true)
 
-        val adapter = MyAdapter(myList, this)
-        my_rv.adapter = adapter
+        val adapter = MyAdapter(myList, this).apply {
+            setHasStableIds(true)
+        }.also {
+            my_rv.adapter = it
+        }
 
-        tracker = SelectionTracker.Builder<Long>(
-                "selection-1",
-                my_rv,
-                StableIdKeyProvider(my_rv),
-                MyLookup(my_rv),
-                StorageStrategy.createLongStorage()
+        tracker = SelectionTracker.Builder(
+            "selection-1",
+            my_rv,
+            StableIdKeyProvider(my_rv),
+            MyLookup(my_rv),
+            StorageStrategy.createLongStorage()
         ).withSelectionPredicate(SelectionPredicates.createSelectAnything())
-         .build()
+            .build()
 
-        if(savedInstanceState != null)
-            tracker?.onRestoreInstanceState(savedInstanceState)
+        if (savedInstanceState != null) {
+            tracker.onRestoreInstanceState(savedInstanceState)
+        }
 
-        adapter.setTracker(tracker!!)
+        adapter.setTracker(tracker)
 
-        tracker?.addObserver(object: SelectionTracker.SelectionObserver<Long>() {
+        tracker.selectFirst()
+//        tracker.selectLast(myList)
+//        tracker.selectAll(myList)
+        onSelectionChangedListener(myList)
+
+        tracker.addObserver(object : SelectionTracker.SelectionObserver<Long>() {
             override fun onSelectionChanged() {
-                val nItems:Int? = tracker?.selection?.size()
-
-                if(nItems!=null && nItems > 0) {
-                    title = "$nItems items selected"
-                    supportActionBar?.setBackgroundDrawable(
-                            ColorDrawable(Color.parseColor("#ef6c00")))
-                } else {
-                    title = "RVSelection"
-                    supportActionBar?.setBackgroundDrawable(
-                            ColorDrawable(getColor(R.color.colorPrimary)))
-                }
+                onSelectionChangedListener(myList)
             }
         })
     }
 
-    override fun onSaveInstanceState(outState: Bundle?) {
-        super.onSaveInstanceState(outState)
+    private fun onSelectionChangedListener(list: List<Person>) {
+        tracker.selection.map { list[it.toInt()] }.let {
+            Log.d("selected", it.toString())
+        }
 
-        if(outState != null)
-            tracker?.onSaveInstanceState(outState)
+        val nItems: Int = tracker.selection.size()
+
+        if (nItems > 0) {
+            title = "$nItems items selected"
+            supportActionBar?.setBackgroundDrawable(
+                ColorDrawable(Color.parseColor("#ef6c00"))
+            )
+        } else {
+            title = "RVSelection"
+            supportActionBar?.setBackgroundDrawable(
+                ColorDrawable(getColor(R.color.colorPrimary))
+            )
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        tracker.onSaveInstanceState(outState)
     }
 }
