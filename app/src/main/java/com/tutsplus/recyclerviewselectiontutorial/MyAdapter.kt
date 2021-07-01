@@ -3,19 +3,18 @@ package com.tutsplus.recyclerviewselectiontutorial
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.recyclerview.selection.SelectionTracker
+import androidx.recyclerview.widget.RecyclerView
 
-class MyAdapter(private val listItems:List<Person>,
-                private val context: Context)
-    : RecyclerView.Adapter<MyViewHolder>() {
+class MyAdapter(
+    private val listItems: List<Person>,
+    private val context: Context
+) : RecyclerView.Adapter<MyViewHolder>() {
 
-    init {
-        setHasStableIds(true)
-    }
+    private lateinit var tracker: SelectionTracker<Long>
 
     override fun getItemCount(): Int = listItems.size
 
@@ -23,30 +22,24 @@ class MyAdapter(private val listItems:List<Person>,
         return position.toLong()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup,
-                                    viewType: Int): MyViewHolder = MyViewHolder(
-            LayoutInflater.from(context)
-                    .inflate(R.layout.list_item, parent, false)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyViewHolder = MyViewHolder(
+        LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
     )
 
     override fun onBindViewHolder(vh: MyViewHolder, position: Int) {
-        vh.name.text = listItems[position].name
-        vh.phone.text = listItems[position].phone
+        val (name, phone) = listItems[position]
+        vh.name.text = name
+        vh.phone.text = phone
 
         val parent = vh.name.parent as LinearLayout
 
-        if(tracker!!.isSelected(position.toLong())) {
-            parent.background = ColorDrawable(
-                    Color.parseColor("#80deea")
-            )
-        } else {
-            parent.background = ColorDrawable(Color.WHITE)
+        parent.background = when {
+            tracker.isSelected(position.toLong()) -> ColorDrawable(Color.CYAN)
+            else -> ColorDrawable(Color.WHITE)
         }
     }
 
-    private var tracker: SelectionTracker<Long>? = null
-
-    fun setTracker(tracker: SelectionTracker<Long>?) {
+    fun setTracker(tracker: SelectionTracker<Long>) {
         this.tracker = tracker
     }
 }
